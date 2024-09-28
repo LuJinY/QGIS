@@ -1,6 +1,8 @@
+import os
+
 from PyQt5.QtWidgets import QFileDialog, QHBoxLayout, QVBoxLayout
 from qgis.PyQt.QtWidgets import QMainWindow
-from qgis._core import QgsLayerTreeModel
+from qgis._core import QgsLayerTreeModel, QgsVectorLayer, QgsRasterLayer
 from qgis._gui import QgsMapCanvas, QgsLayerTreeMapCanvasBridge, QgsLayerTreeView
 from qgis.core import QgsProject
 from QGIS_Design_0214 import Ui_MainWindow
@@ -16,7 +18,7 @@ class MainWindow(QMainWindow,Ui_MainWindow):
         self.setWindowTitle("312205040214 zhou tao")
 
         #绑定槽函数OpenMap
-        self.actionOpen_Map.triggered.connect(self.actionOpenMapTriggered)
+        self.actionOpenMap.triggered.connect(self.actionOpenMapTriggered)
 
         #设置画布
         self.mapCanvas = QgsMapCanvas(self)
@@ -41,11 +43,22 @@ class MainWindow(QMainWindow,Ui_MainWindow):
         self.model.setAutoCollapseLegendNodes(10)  # 当节点数大于等于10时自动折叠
         self.layerTreeView.setModel(self.model)
 
+        self.actionOpenVector.triggered.connect(self.actionOpenVectorTriggered)
+        self.actionOpenRaster.triggered.connect(self.actionOpenRasterTriggered)
 
-
-    #响应槽函数OpenMao
+    #响应槽函数OpenMap
     def actionOpenMapTriggered(self):
         map_file, ext = QFileDialog.getOpenFileName(self, '打开', '',
                                                     "QGIS Map(*.qgz);;All Files(*);;Other(*.gpkg;*.geojson;*.kml)")
         QgsProject.instance().read(map_file)
+
+    def actionOpenVectorTriggered(self):
+        data_file, ext = QFileDialog.getOpenFileName(self, 'Open Vector','.',"QGIS Vector(*.shp)")
+        vectorLayer = QgsVectorLayer(data_file,os.path.basename(data_file))
+        QgsProject.instance().addMapLayer(vectorLayer)
+
+    def actionOpenRasterTriggered(self):
+        data_file,ext= QFileDialog.getOpenFileName(self,'Open Rasters'  "QGlS Raster(* tif")
+        rasterLayer=QgsRasterLayer(data_file,os.path.basename(data_file))
+        QgsProject.instance().addMapLayer(rasterLayer)
 

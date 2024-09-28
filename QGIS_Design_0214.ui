@@ -40,12 +40,14 @@
     <property name="title">
      <string>Map</string>
     </property>
-    <addaction name="actionOpen_Map"/>
+    <addaction name="actionOpenMap"/>
    </widget>
    <widget class="QMenu" name="menuData">
     <property name="title">
      <string>Data</string>
     </property>
+    <addaction name="actionOpenVector"/>
+    <addaction name="actionOpenRaster"/>
    </widget>
    <widget class="QMenu" name="menuNavigate">
     <property name="title">
@@ -81,9 +83,19 @@
    </attribute>
    <widget class="QWidget" name="dockWidgetContents"/>
   </widget>
-  <action name="actionOpen_Map">
+  <action name="actionOpenMap">
    <property name="text">
     <string>Open Map</string>
+   </property>
+  </action>
+  <action name="actionOpenVector">
+   <property name="text">
+    <string>OpenVector</string>
+   </property>
+  </action>
+  <action name="actionOpenRaster">
+   <property name="text">
+    <string>OpenRaster</string>
    </property>
   </action>
  </widget>
