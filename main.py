@@ -20,7 +20,7 @@ from Ui_frm_main import MainWindow
 
 if __name__ == '__main__':
     QgsApplication.setPrefixPath('D:/QGIS/bin', True)
-    #复制后更改PATH路径，\改成/
+    #复制后更改PATH路径
     QgsApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
     app = QgsApplication([], True)
     app.initQgis()
