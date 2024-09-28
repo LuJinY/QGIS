@@ -14,3 +14,19 @@ if __name__ == '__main__':
     print_hi('PyCharm')
 
 # 访问 https://www.jetbrains.com/help/pycharm/ 获取 PyCharm 帮助
+from qgis.core import QgsApplication
+from PyQt5.QtCore import Qt
+from Ui_frm_main import MainWindow
+
+if __name__ == '__main__':
+    QgsApplication.setPrefixPath('D:/QGIS/bin', True)
+    #复制后更改PATH路径，\改成/
+    QgsApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
+    app = QgsApplication([], True)
+    app.initQgis()
+
+    mainWindow = MainWindow()
+    mainWindow.show()
+
+    app.exec()
+    app.exitQgis()
