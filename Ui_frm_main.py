@@ -93,9 +93,11 @@ class MainWindow(QMainWindow,Ui_MainWindow):
         self.defaultMenu.addAction(self.action_move_to_bottom)
         self.defaultMenu.addAction(self.action_remove_layer)
 
+        #菜单关联
         self.layerTreeView.customContextMenuRequested.connect(self.showContextMenu)
         self.layerTreeView.setContextMenuPolicy(Qt.CustomContextMenu)
 
+        ##设置不同的右键菜单
         self.vectorMenu = QMenu()
         self.actionShowAttributeDialog = QAction("打开属性表", self.layerTreeView)
         self.vectorMenu.addAction(self.action_zoom_to_layer)
@@ -120,13 +122,13 @@ class MainWindow(QMainWindow,Ui_MainWindow):
         vectorLayer = QgsVectorLayer(data_file,os.path.basename(data_file))
         QgsProject.instance().addMapLayer(vectorLayer)
 
-    #相应槽函数——actionOpenRaster
+    #响应槽函数——actionOpenRaster
     def actionOpenRasterTriggered(self):
         data_file,ext= QFileDialog.getOpenFileName(self,'Open Rasters'  "QGlS Raster(* tif")
         rasterLayer=QgsRasterLayer(data_file,os.path.basename(data_file))
         QgsProject.instance().addMapLayer(rasterLayer)
 
-    #右键菜单关联
+    #响应槽函数——showContextMenu
     def showContextMenu(self,index):
         selected_nodes:list[QgsLayerTreeNode] = self.layerTreeView.selectedLayerNodes()
         selected_layers:list[QgsMapLayer] = self.layerTreeView.selectedLayers()
@@ -143,7 +145,7 @@ class MainWindow(QMainWindow,Ui_MainWindow):
         else:
             pass
 
-
+    #响应槽函数——openAttributeTable
     def openAttributeTableTriggered(self):
         self.layer=self.layerTreeView.currentLayer()
         ad=AttributeDialog(self,self.layer)
