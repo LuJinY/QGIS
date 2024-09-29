@@ -152,3 +152,4 @@ class MainWindow(QMainWindow,Ui_MainWindow):
         ad.show()
 
 
+
