@@ -1,14 +1,40 @@
 import os
 
-from PyQt5.QtWidgets import QFileDialog, QHBoxLayout, QVBoxLayout
+from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QCursor
+from PyQt5.QtWidgets import QFileDialog, QHBoxLayout, QVBoxLayout, QMenu, QAction, QDialog
 from qgis.PyQt.QtWidgets import QMainWindow
-from qgis._core import QgsLayerTreeModel, QgsVectorLayer, QgsRasterLayer
-from qgis._gui import QgsMapCanvas, QgsLayerTreeMapCanvasBridge, QgsLayerTreeView
+from qgis._core import QgsLayerTreeModel, QgsVectorLayer, QgsRasterLayer, QgsMapLayer, QgsLayerTreeNode, \
+    QgsVectorLayerCache
+from qgis._gui import QgsMapCanvas, QgsLayerTreeMapCanvasBridge, QgsLayerTreeView, QgsAttributeTableView, QgsGui, \
+    QgsAttributeTableModel, QgsAttributeTableFilterModel
 from qgis.core import QgsProject
 from QGIS_Design_0214 import Ui_MainWindow
 #PROJECT=QgsProject.instance()
 
 #用#注释上面这句话，往后遇到PROJECT，用右侧的替代
+
+class AttributeDialog(QDialog):
+    def __init__(self, mainWindows,layer):
+        super(AttributeDialog,self).__init__(mainWindows)
+        self.mainWindows = mainWindows
+        self.mapCanvas=self.mainWindows.mapCanvas
+        self.layer:QgsVectorLayer=layer
+        self.setWindowTitle(self.layer.name()+"属性表:")
+        vl=QHBoxLayout(self)
+        self.tableView= QgsAttributeTableView(self)
+        self.resize(400,400)
+        vl.addWidget(self.tableView)
+        self.openAttributeDialog()
+        QgsGui.editorWidgetRegistry().initEditors(self.mapCanvas)
+
+    def openAttributeDialog(self):
+        self.layerCache=QgsVectorLayerCache(self.layer,10000)
+        self.tableModel=QgsAttributeTableModel(self.layerCache)
+        self.tableModel.loadLayer()
+        self.tableFilterModel= QgsAttributeTableFilterModel(self.mapCanvas, self.tableModel, parent=self.tableModel)
+        self.tableFilterModel.setFilterMode(QgsAttributeTableFilterModel.ShowAll) #显示问题
+        self.tableView.setModel(self.tableFilterModel)
 
 class MainWindow(QMainWindow,Ui_MainWindow):
     def __init__(self):
@@ -43,22 +69,84 @@ class MainWindow(QMainWindow,Ui_MainWindow):
         self.model.setAutoCollapseLegendNodes(10)  # 当节点数大于等于10时自动折叠
         self.layerTreeView.setModel(self.model)
 
+        #槽函数actionOpenVector和actionOpenRaster
         self.actionOpenVector.triggered.connect(self.actionOpenVectorTriggered)
         self.actionOpenRaster.triggered.connect(self.actionOpenRasterTriggered)
 
-    #响应槽函数OpenMap
+        #选中图层时的默认Action
+        self.default_action = self.layerTreeView.defaultActions()
+        self.action_zoom_to_layer = self.default_action.actionZoomToLayer(self.mapCanvas)
+        self.action_move_to_top = self.default_action.actionMoveToTop()
+        self.action_move_to_bottom = self.default_action.actionMoveToBottom()
+        self.action_remove_layer = self.default_action.actionRemoveGroupOrLayer()
+
+        #默认菜单(未选中)
+        self.otherMenu = QMenu()
+        self.otherMenu.addAction(self.actionOpenMap)
+        self.otherMenu.addAction(self.actionOpenVector)
+        self.otherMenu.addAction(self.actionOpenRaster)
+
+        #默认菜单（选中）
+        self.defaultMenu = QMenu()
+        self.defaultMenu.addAction(self.action_zoom_to_layer)
+        self.defaultMenu.addAction(self.action_move_to_top)
+        self.defaultMenu.addAction(self.action_move_to_bottom)
+        self.defaultMenu.addAction(self.action_remove_layer)
+
+        self.layerTreeView.customContextMenuRequested.connect(self.showContextMenu)
+        self.layerTreeView.setContextMenuPolicy(Qt.CustomContextMenu)
+
+        self.vectorMenu = QMenu()
+        self.actionShowAttributeDialog = QAction("打开属性表", self.layerTreeView)
+        self.vectorMenu.addAction(self.action_zoom_to_layer)
+        self.vectorMenu.addAction(self.action_move_to_top)
+        self.vectorMenu.addAction(self.action_move_to_bottom)
+        self.vectorMenu.addAction(self.action_remove_layer)
+        self.vectorMenu.addAction(self.actionShowAttributeDialog)
+        self.actionShowAttributeDialog.triggered.connect(self.openAttributeTableTriggered)
+
+
+
+
+    #响应槽函数——actionOpenMap
     def actionOpenMapTriggered(self):
         map_file, ext = QFileDialog.getOpenFileName(self, '打开', '',
                                                     "QGIS Map(*.qgz);;All Files(*);;Other(*.gpkg;*.geojson;*.kml)")
         QgsProject.instance().read(map_file)
 
+    #响应槽函数——actionOpenVector
     def actionOpenVectorTriggered(self):
         data_file, ext = QFileDialog.getOpenFileName(self, 'Open Vector','.',"QGIS Vector(*.shp)")
         vectorLayer = QgsVectorLayer(data_file,os.path.basename(data_file))
         QgsProject.instance().addMapLayer(vectorLayer)
 
+    #相应槽函数——actionOpenRaster
     def actionOpenRasterTriggered(self):
         data_file,ext= QFileDialog.getOpenFileName(self,'Open Rasters'  "QGlS Raster(* tif")
         rasterLayer=QgsRasterLayer(data_file,os.path.basename(data_file))
         QgsProject.instance().addMapLayer(rasterLayer)
+
+    #右键菜单关联
+    def showContextMenu(self,index):
+        selected_nodes:list[QgsLayerTreeNode] = self.layerTreeView.selectedLayerNodes()
+        selected_layers:list[QgsMapLayer] = self.layerTreeView.selectedLayers()
+        if len(selected_nodes)==0:
+            self.otherMenu.exec(QCursor.pos())
+        else:
+            pass
+        if len(selected_layers)==1:
+            current_layer = selected_layers[0]
+            if isinstance(current_layer, QgsVectorLayer):
+                self.vectorMenu.exec(QCursor.pos())
+            elif isinstance(current_layer, QgsRasterLayer):
+                self.defaultMenu.exec(QCursor.pos())
+        else:
+            pass
+
+
+    def openAttributeTableTriggered(self):
+        self.layer=self.layerTreeView.currentLayer()
+        ad=AttributeDialog(self,self.layer)
+        ad.show()
+
 
