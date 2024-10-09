@@ -74,8 +74,9 @@
     <property name="title">
      <string>Edit</string>
     </property>
-    <addaction name="actionUndo"/>
-    <addaction name="actionRedo"/>
+    <addaction name="actionEditVector"/>
+    <addaction name="actionSelectFeature"/>
+    <addaction name="actionDeleteFeature"/>
    </widget>
    <addaction name="menuMap"/>
    <addaction name="menuData"/>
@@ -120,6 +121,35 @@
   <action name="actionExit">
    <property name="text">
     <string>Exit</string>
+   </property>
+  </action>
+  <action name="actionEditVector">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>EditVector</string>
+   </property>
+  </action>
+  <action name="actionSelectFeature">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>SelectFeature</string>
+   </property>
+  </action>
+  <action name="actionDelectFeature">
+   <property name="checkable">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>DelectFeature</string>
+   </property>
+  </action>
+  <action name="actionDeleteFeature">
+   <property name="text">
+    <string>DeleteFeature</string>
    </property>
   </action>
  </widget>

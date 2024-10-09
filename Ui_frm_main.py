@@ -1,20 +1,23 @@
 import os
+import traceback
 from tarfile import data_filter
 
 from PyQt5.QtCore import Qt, QMimeData
 from PyQt5.QtGui import QCursor
 from PyQt5.QtWidgets import QFileDialog, QHBoxLayout, QVBoxLayout, QMenu, QAction, QDialog, QApplication, QMessageBox
+from PyQt5.uic.Compiler.qtproxies import QtWidgets
+from pygments.lexer import default
 from qgis.PyQt.QtWidgets import QMainWindow
 from qgis._core import QgsLayerTreeModel, QgsVectorLayer, QgsRasterLayer, QgsMapLayer, QgsLayerTreeNode, \
-    QgsVectorLayerCache
+    QgsVectorLayerCache, QgsLayerTree, QgsLayerTreeGroup
 from qgis._gui import QgsMapCanvas, QgsLayerTreeMapCanvasBridge, QgsLayerTreeView, QgsAttributeTableView, QgsGui, \
-    QgsAttributeTableModel, QgsAttributeTableFilterModel
-from qgis.core import QgsProject
+    QgsAttributeTableModel, QgsAttributeTableFilterModel, QgsLayerTreeViewMenuProvider, QgsLayerTreeViewDefaultActions, \
+    QgsMapToolIdentifyFeature
+from qgis.core import QgsProject, QgsMapLayerType
 from qgis.PyQt.QtCore import QObject, pyqtSignal
 from QGIS_Design_0214 import Ui_MainWindow
 #PROJECT=QgsProject.instance()
 
-#用#注释上面这句话，往后遇到PROJECT，用右侧的替代
 
 class AttributeDialog(QDialog):
     def __init__(self, mainWindows,layer):
@@ -86,6 +89,8 @@ class MainWindow(QMainWindow,Ui_MainWindow):
         self.otherMenu.addAction(self.actionOpenMap)
         self.otherMenu.addAction(self.actionOpenVector)
         self.otherMenu.addAction(self.actionOpenRaster)
+        self.otherMenu.addAction('展开所有图层', self.layerTreeView.expandAllNodes)
+        self.otherMenu.addAction('折叠所有图层', self.layerTreeView.collapseAllNodes)
 
         #默认菜单（选中）
         self.defaultMenu = QMenu()
@@ -93,6 +98,7 @@ class MainWindow(QMainWindow,Ui_MainWindow):
         self.defaultMenu.addAction(self.action_move_to_top)
         self.defaultMenu.addAction(self.action_move_to_bottom)
         self.defaultMenu.addAction(self.action_remove_layer)
+        self.actions: QgsLayerTreeViewDefaultActions = self.layerTreeView.defaultActions()
 
         #菜单关联
         self.layerTreeView.customContextMenuRequested.connect(self.showContextMenu)
@@ -113,6 +119,18 @@ class MainWindow(QMainWindow,Ui_MainWindow):
 
         #拖拽设置
         self.setAcceptDrops(True)
+
+        self.actionEditVector.setEnabled(False)
+        self.editTempLayer: QgsVectorLayer = None  # 初始编辑图层为None
+
+        #鼠标触发事件
+        self.layerTreeView.clicked.connect(self.layerClicked)
+
+        #编辑、选择、删除要素
+        self.actionEditVector.triggered.connect(self.actionEditVectorTriggered)
+        self.actionSelectFeature.triggered.connect(self.actionSelectFeatureTriggered)
+        self.actionDeleteFeature.triggered.connect(self.actionDeleteFeatureTriggered)
+
 
     #响应actionOpenMap
     def actionOpenMapTriggered(self):
@@ -187,5 +205,63 @@ class MainWindow(QMainWindow,Ui_MainWindow):
             else:
                 QMessageBox.about(self, '警告', f'{filePath}为不支持的文件类型，目前支持栅格影像和shp矢量')
 
+    #处理图层点击事件，并选择启用或禁用
+    def layerClicked(self):
+        curLayer: QgsMapLayer = self.layerTreeView.currentLayer()
+        if curLayer and type(curLayer) == QgsVectorLayer and not curLayer.readOnly():
+            self.actionEditVector.setEnabled(True)
+        else:
+            self.actionEditVector.setEnabled(False)
 
+    #响应——EditVector
+    def actionEditVectorTriggered(self):
+        if self.actionEditVector.isChecked():
+            self.editTempLayer: QgsVectorLayer = self.layerTreeView.currentLayer()
+            self.editTempLayer.startEditing()
+        else:
+            saveShpEdit = QMessageBox.question(self, '保存编辑', "确定要将编辑内容保存到内存吗？",
+                                               QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            if saveShpEdit == QMessageBox.Yes:
+                self.editTempLayer.commitChanges()
+            else:
+                self.editTempLayer.rollBack()
 
+            self.mapCanvas.refresh()
+            self.editTempLayer = None
+
+    #处理在地图上选择的特征，并在控制台输出结果
+    def selectToolIdentified(self, feature):
+        print(feature.id())
+        layerTemp: QgsVectorLayer = self.layerTreeView.currentLayer()
+        if layerTemp.type() == QgsMapLayerType.VectorLayer:
+            if feature.id() in layerTemp.selectedFeatureIds():
+                layerTemp.deselect(feature.id())
+            else:
+                layerTemp.removeSelection()
+                layerTemp.select(feature.id())
+
+    #响应——SelectFeature
+    def actionSelectFeatureTriggered(self):
+        if self.actionSelectFeature.isChecked():
+            if self.mapCanvas.mapTool():
+                self.mapCanvas.unsetMapTool(self.mapCanvas.mapTool())
+            self.selectTool = QgsMapToolIdentifyFeature(self.mapCanvas)
+            self.selectTool.setCursor(Qt.ArrowCursor)
+            self.selectTool.featureIdentified.connect(self.selectToolIdentified)
+            layers = self.mapCanvas.layers()
+            if layers:
+                self.selectTool.setLayer(self.layerTreeView.currentLayer())
+            self.mapCanvas.setMapTool(self.selectTool)
+        else:
+            if self.mapCanvas.mapTool():
+                self.mapCanvas.unsetMapTool(self.mapCanvas.mapTool())
+
+    #响应——DeleteFeature
+    def actionDeleteFeatureTriggered(self):
+        if self.editTempLayer == None:
+            QMessageBox.information(self, '警告', '您没有编辑中矢量')
+            return
+        if len(self.editTempLayer.selectedFeatureIds()) == 0:
+            QMessageBox.information(self, '删除选中矢量', '您没有选择任何矢量')
+        else:
+            self.editTempLayer.deleteSelectedFeatures()
