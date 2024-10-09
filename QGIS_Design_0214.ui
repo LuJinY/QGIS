@@ -41,6 +41,7 @@
      <string>Map</string>
     </property>
     <addaction name="actionOpenMap"/>
+    <addaction name="actionExit"/>
    </widget>
    <widget class="QMenu" name="menuData">
     <property name="title">
@@ -114,6 +115,11 @@
   <action name="actionRedo">
    <property name="text">
     <string>Redo</string>
+   </property>
+  </action>
+  <action name="actionExit">
+   <property name="text">
+    <string>Exit</string>
    </property>
   </action>
  </widget>
