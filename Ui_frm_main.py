@@ -1,8 +1,9 @@
 import os
+from tarfile import data_filter
 
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QMimeData
 from PyQt5.QtGui import QCursor
-from PyQt5.QtWidgets import QFileDialog, QHBoxLayout, QVBoxLayout, QMenu, QAction, QDialog, QApplication
+from PyQt5.QtWidgets import QFileDialog, QHBoxLayout, QVBoxLayout, QMenu, QAction, QDialog, QApplication, QMessageBox
 from qgis.PyQt.QtWidgets import QMainWindow
 from qgis._core import QgsLayerTreeModel, QgsVectorLayer, QgsRasterLayer, QgsMapLayer, QgsLayerTreeNode, \
     QgsVectorLayerCache
@@ -110,6 +111,9 @@ class MainWindow(QMainWindow,Ui_MainWindow):
         #退出设置
         self.actionExit.triggered.connect(self.actionExitTriggered)
 
+        #拖拽设置
+        self.setAcceptDrops(True)
+
     #响应actionOpenMap
     def actionOpenMapTriggered(self):
         map_file, ext = QFileDialog.getOpenFileName(self, '打开', '',
@@ -157,7 +161,31 @@ class MainWindow(QMainWindow,Ui_MainWindow):
         QApplication.quit()
         print("Succeed")
 
+    #判断拖拽的数据
+    def dragEnterEvent(self, fileData):
+        if fileData.mimeData().hasUrls():
+            fileData.accept()
+        else:
+            fileData.ignore()
 
+    #处理拖拽数据,需要拖拽至菜单栏Data位置，否则程序崩溃
+    def dropEvent(self, fileData):
+        mimeData: QMimeData = fileData.mimeData()
+        filePathList = [u.path()[1:] for u in mimeData.urls()]
+        for filePath in filePathList:
+            filePath: str = filePath.replace("/", "//")
+            if filePath.split(".")[-1] in ["tif", "TIF", "tiff", "TIFF", "GTIFF", "png", "jpg", "pdf"]:
+                data_file=filePath
+                rasterLayer = QgsRasterLayer(data_file, os.path.basename(data_file))
+                QgsProject.instance().addMapLayer(rasterLayer)
+            elif filePath.split(".")[-1] in ["shp", "SHP", "gpkg", "geojson", "kml"]:
+                data_file=filePath
+                vectorLayer = QgsVectorLayer(data_file, os.path.basename(data_file))
+                QgsProject.instance().addMapLayer(vectorLayer)
+            elif filePath == "":
+                pass
+            else:
+                QMessageBox.about(self, '警告', f'{filePath}为不支持的文件类型，目前支持栅格影像和shp矢量')
 
 
 
